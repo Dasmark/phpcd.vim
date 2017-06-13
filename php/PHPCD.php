@@ -696,6 +696,37 @@ class PHPCD implements RpcHandler
         return $items;
     }
 
+    private function getParamInfo(\ReflectionParameter $param) {
+        $pre = '';
+        $post = '';
+
+        if ($class = $param->getClass()) {
+            $pre .= $class->getName().' ';
+        } elseif (method_exists($param, 'hasType') && $param->hasType()) {
+            $pre .= $param->getType().' ';
+        } else {
+            $doc = $param->getDeclaringFunction()->getDocComment();
+            if (preg_match('/@param\s+(\S+)\s+\$'.preg_quote($param->getName()).'(?:$|\s)/m', $doc, $matches)) {
+                $types = explode('|', $matches[1]);
+                $pre .= join('|', $types).' ';
+            }
+        }
+        if (method_exists($param, 'isVariadic') && $param->isVariadic()) {
+            $pre .= '…';
+        }
+        if ($param->isPassedByReference()) {
+            $pre .= '&';
+        }
+        if ($param->isDefaultValueAvailable()) {
+            if ($param->isDefaultValueConstant()) {
+                $post = '='.$param->getDefaultValueConstantName();
+            } else {
+                $post = '='.json_encode($param->getDefaultValue(), JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+            }
+        }
+        return $pre.'$'.$param->getName().$post;
+    }
+
     private function getFunctionInfo($name, $pattern = null)
     {
         if ($pattern && strpos($name, $pattern) !== 0) {
@@ -704,7 +735,7 @@ class PHPCD implements RpcHandler
 
         $reflection = new \ReflectionFunction($name);
         $params = array_map(function ($param) {
-            return $param->getName();
+            return $this->getParamInfo($param);
         }, $reflection->getParameters());
 
         return [
@@ -745,15 +776,24 @@ class PHPCD implements RpcHandler
         }
 
         $params = array_map(function ($param) {
-            return $param->getName();
+            return $this->getParamInfo($param);
         }, $method->getParameters());
 
+        $docComment = $method->getDocComment();
         $modifier = $this->getModifiers($method);
+        /*
+        $returnType = '';
+        if (method_exists($method, 'getReturnType') && $method->hasReturnType()) {
+            $returnType = " : " . (string)$method->getReturnType();
+        } elseif ($has_doc = preg_match('/@return\s+(\S+)/m', $docComment, $matches)) {
+            $returnType = " : " . $matches[1];
+        }
+         */
 
         return [
             'word' => $name,
-            'abbr' => sprintf("%3s %s (%s)", $modifier, $name, join(', ', $params)),
-            'info' => $this->clearDoc($method->getDocComment()),
+            'abbr' => sprintf("%3s %s (%s)", $modifier, $name, join(', ', $params))/*.$returnType*/,
+            'info' => $this->clearDoc($docComment),
             'kind' => 'f',
             'icase' => 1,
         ];
@@ -808,7 +848,7 @@ class PHPCD implements RpcHandler
     private function clearDoc($doc)
     {
         $doc = preg_replace('/[ \t]*\* ?/m','', $doc);
-        return preg_replace('#\s*\/|/\s*#','', $doc);
+        return trim(preg_replace('#\s*\/|/\s*#','', $doc));
     }
 
     /**
