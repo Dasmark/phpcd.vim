@@ -237,7 +237,7 @@ class PHPCD implements RpcHandler
 
         $doc = $reflection->getDocComment();
 
-        if ($is_method && preg_match('/@inheritDoc/', $doc)) {
+        if ($is_method && preg_match('/@inheritDoc/i', $doc)) {
             $reflection = $this->getReflectionFromInheritDoc($reflection_class, $name);
             $doc = $reflection->getDocComment();
         }
@@ -741,7 +741,7 @@ class PHPCD implements RpcHandler
         return [
             'word' => $name,
             'abbr' => "$name(" . join(', ', $params) . ')',
-            'info' => preg_replace('#/?\*(\*|/)?#','', $reflection->getDocComment()),
+            'info' => $this->clearDoc($reflection->getDocComment()),
             'kind' => 'f',
             'icase' => 1,
         ];
@@ -762,7 +762,7 @@ class PHPCD implements RpcHandler
         return [
             'word' => $name,
             'abbr' => sprintf("%3s %s", $modifier, $name),
-            'info' => preg_replace('#/?\*(\*|/)?#', '', $property->getDocComment()),
+            'info' => $this->clearDoc($property->getDocComment()),
             'kind' => 'p',
             'icase' => 1,
         ];
@@ -847,8 +847,19 @@ class PHPCD implements RpcHandler
 
     private function clearDoc($doc)
     {
-        $doc = preg_replace('/[ \t]*\* ?/m','', $doc);
-        return trim(preg_replace('#\s*\/|/\s*#','', $doc));
+        $doc = preg_replace('/[ \t]*\* ?/m', '', $doc);
+        $doc = trim(preg_replace('#\s*\/|/\s*#', '', $doc));
+        // Make sure the short description is separated form the rest with an empty line
+        $lines = explode("\n", $doc);
+        $lines = array_values(array_filter($lines, function ($line) {
+            return !in_array($line, ['@codeCoverageIgnore']);
+        }));
+        if (count($lines) > 1 && mb_substr($lines[0], 0, 1) !== '@' && !preg_match('/^\s*$/', $lines[1])) {
+            array_splice($lines, 1, 0, ['']);
+        }
+        $doc = join("\n", $lines);
+        $doc = preg_replace('/^([^@\n].*)\n@/m', "\$1\n\n@", $doc);
+        return $doc ?: 'No documentation available';
     }
 
     /**
