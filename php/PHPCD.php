@@ -644,7 +644,7 @@ class PHPCD implements RpcHandler
             preg_match_all('/\$[a-zA-Z0-9_]+/mi', $matches['params'][$idx], $params);
             $items[] = [
                 'word' => $name,
-                'abbr' => sprintf("%3s %s (%s)", '+', $name, join(', ', end($params))),
+                'abbr' => sprintf("%3s %s(%s)", '+', $name, join(', ', end($params))),
                 'info' => $matches['types'][$idx],
                 'kind' => 'f',
                 'icase' => 1,
@@ -792,7 +792,7 @@ class PHPCD implements RpcHandler
 
         return [
             'word' => $name,
-            'abbr' => sprintf("%3s %s (%s)", $modifier, $name, join(', ', $params))/*.$returnType*/,
+            'abbr' => sprintf("%3s %s(%s)", $modifier, $name, join(', ', $params))/*.$returnType*/,
             'info' => $this->clearDoc($docComment),
             'kind' => 'f',
             'icase' => 1,
