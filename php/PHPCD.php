@@ -540,15 +540,19 @@ class PHPCD implements RpcHandler
 
                         $items[] = [
                             'word' => $name,
-                            'abbr' => sprintf(" +@ %s %s", $name, $value),
+                            'abbr' => sprintf(" +@ %s = %s", $name, json_encode($value, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)),
                             'kind' => 'd',
                             'icase' => 1,
                         ];
                     }
                 }
             }
+            if ($is_static === false) {
+                $is_static = null;
+            }
 
             $methods = $reflection->getAvailableMethods($is_static, $public_only);
+            usort($methods, function($a, $b) { return strcmp($a->name, $b->name); });
 
             foreach ($methods as $method) {
                 $info = $this->getMethodInfo($method, $pattern);
@@ -687,7 +691,7 @@ class PHPCD implements RpcHandler
             }
             $items[] = [
                 'word' => $name,
-                'abbr' => "@ $name = $value",
+                'abbr' => "@ $name = ".json_encode($value, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE),
                 'kind' => 'd',
                 'icase' => 0,
             ];
